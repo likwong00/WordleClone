@@ -1,49 +1,75 @@
-import React from 'react'
-import { useEffect } from 'react'
-import { useGame } from './game'
-import Board from './components/Board'
-import Keyboard from './components/Keyboard'
-import Settings from './components/Settings'
-import Stats from './components/Stats'
+import { useEffect, useState } from "react";
+import SettingsIcon from '@mui/icons-material/Settings';
+
+import { useGame } from "./hooks/game";
+import { Board } from "./components/Board";
+import { Keyboard } from "./components/Keyboard/Keyboard";
+import { Settings } from "./components/Settings/Settings";
+import { Stats } from "./components/Stats";
+import { Message} from "./components/Message";
 
 export default function App() {
-  const game = useGame()
+	const game = useGame();
+	const [showSettings, setShowSettings] = useState(false);
 
-  // physical keyboard handling
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (game.gameOver) return
-      const k = e.key
-      if (k === 'Enter') return game.submitGuess()
-      if (k === 'Backspace') return game.backspace()
-      if (/^[a-zA-Z]$/.test(k)) return game.addChar(k.toLowerCase())
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [game])
+	return (
+		<div className="app">
+			<div style={{ position: "relative" }}>
+				<h1>Wordle Clone</h1>
+				<button
+					className="settings-button"
+					onClick={() => setShowSettings(true)}
+					aria-label="Open settings"
+				>
+					<SettingsIcon fontSize="small" />
+				</button>
+			</div>
+			<Board game={game} />
+			<Keyboard addChar={game.addChar} backspace={game.backspace} submitGuess={game.submitGuess} letterStates={game.letterStates} gamePaused={showSettings || game.gameOver}/>
+			<Stats stats={game.stats} />
+			{game.gameOver && (
+				<Message variant="overlay">
+					<div>
+						<h2>
+							{game.lastResult === "win"
+								? "You win!"
+								: "Game over"}
+						</h2>
+						<p>
+							Answer: <strong>{game.answer}</strong>
+						</p>
+						{game.lastResult === "win" &&
+							game.guessesUsed != null && (
+								<p>
+									Guesses used:{" "}
+									<strong>{game.guessesUsed}</strong>
+								</p>
+							)}
+						<div className="overlay-actions">
+							<button onClick={game.reset}>Play again</button>
+						</div>
+					</div>
+				</Message>
+			)}
 
-  return (
-    <div className="app">
-      <h1>Wordle Clone</h1>
-      <Settings game={game} />
-      <Board game={game} />
-      <Keyboard game={game} />
-      <Stats stats={game.stats} />
+			{showSettings && (
+				<Message variant="overlay" onClose={() => setShowSettings(false)}>
+					<Settings
+						maxGuesses={game.maxGuesses}
+						setConfig={game.setConfig}
+						reset={game.reset}
+						onClose={() => setShowSettings(false)}
+					/>
+				</Message>
+			)}
 
-      {game.gameOver && (
-        <div className="overlay">
-          <div className="overlay-card">
-            <h2>{game.lastResult === 'win' ? 'You win!' : 'Game over'}</h2>
-            <p>Answer: <strong>{game.answer}</strong></p>
-            {game.lastResult === 'win' && game.guessesUsed != null && (
-              <p>Guesses used: <strong>{game.guessesUsed}</strong></p>
-            )}
-            <div className="overlay-actions">
-              <button onClick={game.reset}>Play again</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+			{game.message && (
+				<Message
+					text={game.message}
+					variant="toast"
+					onClose={game.clearMessage}
+				/>
+			)}
+		</div>
+	);
 }
