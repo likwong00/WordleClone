@@ -7,7 +7,12 @@ type SettingsProps = {
 	onClose?: () => void;
 };
 
-export function Settings({ maxGuesses, setConfig, reset, onClose }: SettingsProps) {
+export function Settings({
+	maxGuesses,
+	setConfig,
+	reset,
+	onClose,
+}: SettingsProps) {
 	// keep as string so clearing the input doesn't coerce to 0
 	const [max, setMax] = useState(String(maxGuesses || 6));
 	const [wordText, setWordText] = useState("");
@@ -52,13 +57,17 @@ export function Settings({ maxGuesses, setConfig, reset, onClose }: SettingsProp
 					onChange={(e) => setWordText(e.target.value)}
 				/>
 			</label>
-			<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-				<button onClick={apply} disabled={!isValid} aria-disabled={!isValid}>
+			<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+				<button
+					onClick={apply}
+					disabled={!isValid}
+					aria-disabled={!isValid}
+				>
 					Apply
 				</button>
 				<button onClick={() => onClose && onClose()}>Close</button>
 				{!isValid && touched && (
-					<div style={{ color: '#f66', marginLeft: 8 }} role="alert">
+					<div style={{ color: "#f66", marginLeft: 8 }} role="alert">
 						Please enter a number between 1 and 10
 					</div>
 				)}

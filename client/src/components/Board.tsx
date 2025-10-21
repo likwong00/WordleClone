@@ -1,19 +1,28 @@
 import React from "react";
 import { TileState } from "../hooks/game";
 
-export function Board({ game }: any) {
-	const {
-		board,
-		states,
-		currentRow,
-		currentGuess,
-		wordLength,
-		maxGuesses,
-		shake,
-	} = game;
+type BoardProps = {
+	board: string[];
+	states: TileState[][];
+	currentRow: number;
+	currentGuess: string;
+	wordLength: number;
+	maxGuesses: number;
+	shake?: boolean;
+};
+
+export function Board({
+	board,
+	states,
+	currentRow,
+	currentGuess,
+	wordLength,
+	maxGuesses,
+	shake,
+}: BoardProps) {
 
 	const rows = Array.from({ length: maxGuesses }, (_, r) => {
-		const rowWord = r === currentRow ? currentGuess : board[r];
+		const rowWord = r === currentRow ? currentGuess : board[r] || "";
 		const rowStates: TileState[] | undefined = states[r];
 		const revealed = !!(
 			rowStates && rowStates.some((s: TileState) => s !== "empty")

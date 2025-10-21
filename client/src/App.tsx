@@ -1,16 +1,25 @@
-import { useEffect, useState } from "react";
-import SettingsIcon from '@mui/icons-material/Settings';
+import { useState, useEffect, useRef } from "react";
+import SettingsIcon from "@mui/icons-material/Settings";
 
 import { useGame } from "./hooks/game";
 import { Board } from "./components/Board";
 import { Keyboard } from "./components/Keyboard/Keyboard";
 import { Settings } from "./components/Settings/Settings";
 import { Stats } from "./components/Stats";
-import { Message} from "./components/Message";
+import { Message } from "./components/Message";
 
 export default function App() {
 	const game = useGame();
 	const [showSettings, setShowSettings] = useState(false);
+
+	// initialize a game once on mount; guard against duplicate calls in StrictMode
+	const createdRef = useRef(false);
+	useEffect(() => {
+		if (!game.connected) return; // wait until socket is connected
+		if (createdRef.current) return;
+		createdRef.current = true;
+		game.createGame("Player");
+	}, [game.connected, game.createGame]);
 
 	return (
 		<div className="app">
@@ -24,8 +33,22 @@ export default function App() {
 					<SettingsIcon fontSize="small" />
 				</button>
 			</div>
-			<Board game={game} />
-			<Keyboard addChar={game.addChar} backspace={game.backspace} submitGuess={game.submitGuess} letterStates={game.letterStates} gamePaused={showSettings || game.gameOver}/>
+			<Board
+				board={game.board}
+				states={game.states}
+				currentRow={game.currentRow}
+				currentGuess={game.currentGuess}
+				wordLength={game.wordLength}
+				maxGuesses={game.maxGuesses}
+				shake={game.boardShake}
+			/>
+			<Keyboard
+				addChar={game.addChar}
+				backspace={game.backspace}
+				submitGuess={game.submitGuess}
+				letterStates={game.letterStates}
+				gamePaused={showSettings || game.gameOver}
+			/>
 			<Stats stats={game.stats} />
 			{game.gameOver && (
 				<Message variant="overlay">
@@ -53,7 +76,10 @@ export default function App() {
 			)}
 
 			{showSettings && (
-				<Message variant="overlay" onClose={() => setShowSettings(false)}>
+				<Message
+					variant="overlay"
+					onClose={() => setShowSettings(false)}
+				>
 					<Settings
 						maxGuesses={game.maxGuesses}
 						setConfig={game.setConfig}
