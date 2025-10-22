@@ -6,10 +6,40 @@ const ENGLISH_WORDS = isWord('american-english');
 
 export type TileState = "absent" | "present" | "correct" | "empty";
 
+// Use a fixed word pool for easier testing
+// Can use a english dictionary package for a proper game
+const TESTING_WORD_POOL = WORDS.words;
+
+type PlayerState = {
+	id: string;
+	name?: string;
+	board: string[];
+	states: TileState[][];
+	currentRow: number;
+	gameOver: boolean;
+	lastResult: "win" | "lose" | null;
+};
+
+export type GameConfig = {
+	maxGuesses: number;
+	wordLength: number;
+	extraWordPool?: string[];
+}
+
+type Game = {
+	id: string;
+	owner: string;
+	answer: string;
+	gameConfig: GameConfig;
+	players: Map<string, PlayerState>;
+	addPlayer: (id: string, name?: string) => PlayerState;
+	getState: () => any;
+};
+
 function pickAnswer(words: string[]) {
 	if (!words || words.length === 0) return "apple";
-	const idx = Math.floor(Math.random() * words.length);
-	return words[idx].toLowerCase();
+	const randomIndex = Math.floor(Math.random() * words.length);
+	return words[randomIndex].toLowerCase();
 }
 
 function checkGuess(guess: string, answer: string): TileState[] {
@@ -43,40 +73,17 @@ function checkGuess(guess: string, answer: string): TileState[] {
 	return res;
 }
 
-type PlayerState = {
-	id: string;
-	name?: string;
-	board: string[];
-	states: TileState[][];
-	currentRow: number;
-	gameOver: boolean;
-	lastResult: "win" | "lose" | null;
-};
-
-type Game = {
-	id: string;
-	owner: string;
-	answer: string;
-	maxGuesses: number;
-	wordLength: number;
-	players: Map<string, PlayerState>;
-	addPlayer: (id: string, name?: string) => PlayerState;
-	getState: () => any;
-};
-
-const ALLOWED = WORDS.words.map((w: string) => w.toLowerCase());
-
 export function createGame(
 	ownerId: string,
+	gameConfig: GameConfig,
 	playerName?: string,
-	opts?: { maxGuesses?: number; wordLength?: number; wordsPool?: string[] },
 ): Game {
-	const maxGuesses = opts?.maxGuesses || 6;
-	const wordLength = opts?.wordLength || 5;
+	const maxGuesses = gameConfig?.maxGuesses || 6;
+	const wordLength = gameConfig?.wordLength || 5;
 	const pool =
-		opts?.wordsPool && opts.wordsPool.length
-			? opts.wordsPool.map((w) => w.toLowerCase())
-			: ALLOWED;
+		gameConfig?.extraWordPool && gameConfig.extraWordPool.length
+			? TESTING_WORD_POOL.concat(gameConfig.extraWordPool.map((word) => word.toLowerCase()))
+			: TESTING_WORD_POOL;
 	const answer = pickAnswer(pool);
 	const id = crypto.randomBytes(10).toString("hex");
 
@@ -110,25 +117,25 @@ export function createGame(
 		id,
 		owner: ownerId,
 		answer,
-		maxGuesses,
-		wordLength,
+		gameConfig,
 		players,
 		addPlayer,
 		getState() {
 			const playersState: any = {};
-			players.forEach((p, pid) => {
+			players.forEach((player, pid) => {
 				playersState[pid] = {
-					board: p.board,
-					states: p.states,
-					currentRow: p.currentRow,
-					gameOver: p.gameOver,
-					lastResult: p.lastResult,
+					board: player.board,
+					states: player.states,
+					currentRow: player.currentRow,
+					gameOver: player.gameOver,
+					lastResult: player.lastResult,
 				};
 			});
 			return {
 				id: g.id,
-				maxGuesses: g.maxGuesses,
-				wordLength: g.wordLength,
+				maxGuesses: g.gameConfig.maxGuesses,
+				wordLength: g.gameConfig.wordLength,
+				extraWordPool: g.gameConfig.extraWordPool,
 				players: playersState,
 			};
 		},
@@ -148,7 +155,7 @@ export function handleGuess(game: Game, playerId: string, rawGuess: string) {
     }
 
 	const guess = (rawGuess || "").trim().toLowerCase();
-	if (guess.length !== game.wordLength) {
+	if (guess.length !== game.gameConfig.wordLength) {
         console.log("Not enough letters");
         return { message: "Not enough letters", playerId };
     } 
@@ -170,7 +177,7 @@ export function handleGuess(game: Game, playerId: string, rawGuess: string) {
 	if (isWin) {
 		player.gameOver = true;
 		player.lastResult = "win";
-	} else if (nextRow >= game.maxGuesses) {
+	} else if (nextRow >= game.gameConfig.maxGuesses) {
 		player.gameOver = true;
 		player.lastResult = "lose";
 	} else {
@@ -179,7 +186,7 @@ export function handleGuess(game: Game, playerId: string, rawGuess: string) {
 
 	// compute letterStates for this player's revealed info
 	const letterStates: Record<string, TileState> = {};
-	for (let r = 0; r < game.maxGuesses; r++) {
+	for (let r = 0; r < game.gameConfig.maxGuesses; r++) {
 		const word = player.board[r];
 		const stRow = player.states[r];
 		if (!word) continue;

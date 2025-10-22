@@ -1,7 +1,7 @@
 import express from "express";
 import * as http from "http";
 import { Server } from "socket.io";
-import { createGame, handleGuess } from "./game";
+import { createGame, GameConfig, handleGuess } from "./game";
 
 const app = express();
 const server = http.createServer(app);
@@ -19,8 +19,8 @@ const games = new Map<string, ReturnType<typeof createGame>>();
 io.on("connection", (socket) => {
 	console.log(`Player connected: ${socket.id}`);
 
-	socket.on("create-game", (playerName: string, callback) => {
-		const game = createGame(socket.id, playerName);
+	socket.on("create-game", (playerName: string, gameConfig: GameConfig, callback) => {
+		const game = createGame(socket.id, gameConfig, playerName);
         console.log(`Game created: ${game.id}`);
 		games.set(game.id, game);
 		socket.join(game.id);

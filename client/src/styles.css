@@ -133,6 +133,11 @@ body {
 .settings input {
 	padding: 6px;
 }
+.settings .error-alert {
+	color: #f66;
+	font-size: 12px;
+	margin-left: 8px;
+}
 
 /* keyboard */
 .keyboard-row {

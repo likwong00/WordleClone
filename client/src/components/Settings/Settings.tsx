@@ -1,77 +1,150 @@
 import { useState } from "react";
+import { Button, Dialog, DialogContent, Slider } from "@mui/material";
+
+import { GameConfig } from "../../hooks/game";
 
 type SettingsProps = {
-	maxGuesses: number;
-	setConfig: (opts: { maxGuesses?: number; words?: string[] }) => void;
-	reset: () => void;
+	open: boolean;
+	currentSettings: GameConfig;
+	setLocalSettings: (gameConfig: GameConfig) => void;
+	submitSettingsToGame: (gameConfig: GameConfig) => void;
 	onClose?: () => void;
+	primaryLabel?: string;
+	secondaryLabel?: string;
 };
 
+function wordSplit(wordListText: string): string[] {
+	return wordListText
+		.split(/\s*,\s*/)
+		.map((word) => word.trim())
+		.filter((word) => word.length > 0);
+}
+
+function validateWordList(wordList: string[], wordLength: number): boolean {
+	return wordList.every(
+		(word) => typeof word === "string" && word.length === wordLength,
+	);
+}
+
 export function Settings({
-	maxGuesses,
-	setConfig,
-	reset,
+	open,
+	currentSettings,
+	setLocalSettings,
+	submitSettingsToGame,
 	onClose,
+	primaryLabel = "Apply",
+	secondaryLabel = "Close",
 }: SettingsProps) {
-	// keep as string so clearing the input doesn't coerce to 0
-	const [max, setMax] = useState(String(maxGuesses || 6));
-	const [wordText, setWordText] = useState("");
-	const [touched, setTouched] = useState(false);
+	const [maxGuesses, setMaxGuesses] = useState<number>(
+		currentSettings.maxGuesses,
+	);
+	const [wordLength, setWordLength] = useState<number>(
+		currentSettings.wordLength,
+	);
+	const [wordText, setWordText] = useState<string>("");
 
 	function apply() {
-		const words = wordText.split(/\s*,\s*/).filter(Boolean);
-		let parsedMax = Number(max);
-		if (Number.isNaN(parsedMax) || parsedMax < 1) parsedMax = 1;
-		if (parsedMax > 10) parsedMax = 10;
-		setConfig({
-			maxGuesses: parsedMax,
-			words: words.length ? words : undefined,
-		});
-		reset();
-		if (onClose) onClose();
+		const words = wordSplit(wordText);
+		const newSettings: GameConfig = {
+			maxGuesses,
+			wordLength,
+			extraWordPool: words.length ? words : undefined,
+		};
+		console.log("Applying settings:", newSettings);
+		setLocalSettings(newSettings);
+		submitSettingsToGame(newSettings);
+		if (onClose && primaryLabel === "Apply") onClose();
 	}
 
-	const parsed = Number(max);
-	const isValid = !Number.isNaN(parsed) && parsed >= 1 && parsed <= 100;
+	const isValidWordListInput = validateWordList(
+		wordSplit(wordText),
+		wordLength,
+	);
 
 	return (
-		<div className="settings">
-			<h2>Settings</h2>
-			<label>
-				Max guesses:{" "}
-				<input
-					type="number"
-					value={max}
-					min={1}
-					max={100}
-					onChange={(e) => {
-						setTouched(true);
-						setMax(e.target.value);
-					}}
-				/>
-			</label>
-			<label>
-				Additional words (comma separated):{" "}
-				<input
-					value={wordText}
-					onChange={(e) => setWordText(e.target.value)}
-				/>
-			</label>
-			<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-				<button
-					onClick={apply}
-					disabled={!isValid}
-					aria-disabled={!isValid}
-				>
-					Apply
-				</button>
-				<button onClick={() => onClose && onClose()}>Close</button>
-				{!isValid && touched && (
-					<div style={{ color: "#f66", marginLeft: 8 }} role="alert">
-						Please enter a number between 1 and 10
+		<Dialog
+			open={open}
+			onClose={(_, reason) => {
+				// Prevent closing via backdrop/Escape; use Back button instead
+				if (reason === "backdropClick") return;
+			}}
+			disableEscapeKeyDown
+			aria-labelledby="game-config-title"
+		>
+			<DialogContent dividers>
+				<div className="settings">
+					<h2>Settings</h2>
+					<label htmlFor="max-guesses-slider">
+						Max guesses: {maxGuesses}
+					</label>
+					<Slider
+						aria-label="Max guesses"
+						id="max-guesses-slider"
+						min={3}
+						max={10}
+						step={1}
+						value={maxGuesses}
+						valueLabelDisplay="auto"
+						onChange={(_, value) => {
+							if (typeof value === "number") setMaxGuesses(value);
+						}}
+					/>
+
+					<label htmlFor="word-length-slider">
+						Word length: {wordLength}
+					</label>
+					<Slider
+						aria-label="Word length"
+						id="word-length-slider"
+						min={2}
+						max={10}
+						step={1}
+						value={wordLength}
+						valueLabelDisplay="auto"
+						onChange={(_, value) => {
+							if (typeof value === "number") setWordLength(value);
+						}}
+					/>
+
+					<label>
+						Additional words (comma separated):{" "}
+						<input
+							aria-label="Additional words"
+							value={wordText}
+							onChange={(e) => setWordText(e.target.value)}
+						/>
+					</label>
+
+					<div
+						style={{
+							display: "flex",
+							gap: 8,
+							alignItems: "center",
+						}}
+					>
+						<Button
+							variant="outlined"
+							onClick={apply}
+							disabled={!isValidWordListInput}
+							aria-disabled={!isValidWordListInput}
+						>
+							{primaryLabel}
+						</Button>
+						<Button
+							variant="outlined"
+							onClick={() => onClose && onClose()}
+						>
+							{secondaryLabel}
+						</Button>
+						{!isValidWordListInput && (
+							<div className="error-alert" role="alert">
+								Please enter a list of words with the correct
+								length
+							</div>
+						)}
 					</div>
-				)}
-			</div>
-		</div>
+				</div>
+			</DialogContent>
+		</Dialog>
 	);
 }

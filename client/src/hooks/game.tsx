@@ -3,6 +3,12 @@ import { io, Socket } from "socket.io-client";
 
 export type TileState = "absent" | "present" | "correct" | "empty";
 
+export type GameConfig = {
+	maxGuesses: number;
+	wordLength: number;
+	extraWordPool?: string[];
+};
+
 type ServerState = {
 	board: string[];
 	states: TileState[][];
@@ -15,11 +21,18 @@ type ServerState = {
 	shake?: boolean;
 };
 
+const DEFAULT_GAME_CONFIG: GameConfig = {
+	maxGuesses: 6,
+	wordLength: 5,
+};
+
 export function useGame() {
 	const [socket, setSocket] = useState<Socket | null>(null);
 	const [sessionId, setSessionId] = useState<string | null>(null);
 	const [playerId, setPlayerId] = useState<string | null>(null);
 	const [state, setState] = useState<ServerState | null>(null);
+	const [currentGameConfig, setCurrentGameConfig] =
+		useState<GameConfig>(DEFAULT_GAME_CONFIG);
 	const [connected, setConnected] = useState(false);
 	const [currentGuess, setCurrentGuess] = useState("");
 	const [boardShake, setBoardShake] = useState(false);
@@ -36,8 +49,9 @@ export function useGame() {
 		s.on("game-start", (state: ServerState) => {
 			console.log("socket game-start:", state);
 			setState(state);
+			setCurrentGuess("");
 		});
-		s.on("game-update", (incoming: Partial<ServerState> & any) => {
+		s.on("game-update", (incoming: Partial<ServerState>) => {
 			console.log("socket game-update:", incoming);
 			setState((prev) => {
 				if (!prev) return incoming as ServerState;
@@ -45,16 +59,18 @@ export function useGame() {
 					...prev,
 					...incoming,
 					board:
-						Array.isArray(incoming?.board) && incoming.board.length > 0
-							? (incoming.board as string[])
+						Array.isArray(incoming?.board) &&
+						incoming.board.length > 0
+							? incoming.board
 							: prev.board,
 					states:
-						Array.isArray(incoming?.states) && incoming.states.length > 0
-							? (incoming.states as TileState[][])
+						Array.isArray(incoming?.states) &&
+						incoming.states.length > 0
+							? incoming.states
 							: prev.states,
 					currentRow:
 						typeof incoming?.currentRow === "number"
-							? (incoming.currentRow as number)
+							? incoming.currentRow
 							: prev.currentRow,
 					letterStates: incoming?.letterStates ?? prev.letterStates,
 					message: incoming?.message ?? undefined,
@@ -64,6 +80,10 @@ export function useGame() {
 				if (incoming?.message) {
 					setBoardShake(false);
 					setTimeout(() => setBoardShake(true), 0);
+				}
+
+				if (!incoming?.gameOver) {
+					setCurrentGuess("");
 				}
 
 				return merged;
@@ -85,14 +105,19 @@ export function useGame() {
 	}, []);
 
 	const createGame = useCallback(
-		(playerName?: string) => {
+		(gameconfig: GameConfig, playerName?: string) => {
 			if (!socket) return;
 			const emitCreate = () =>
-				socket.emit("create-game", playerName, (res: any) => {
-					console.debug("create-game ack:", res);
-					if (res?.gameId) setSessionId(res.gameId);
-					// owner already added; wait for game-start
-				});
+				socket.emit(
+					"create-game",
+					playerName,
+					gameconfig,
+					(res: any) => {
+						console.log("create-game ack:", res);
+						if (res?.gameId) setSessionId(res.gameId);
+						// owner already added; wait for game-start
+					},
+				);
 			if (socket.connected) emitCreate();
 			else socket.once("connect", emitCreate);
 		},
@@ -103,15 +128,11 @@ export function useGame() {
 		(gameId: string, playerName?: string) => {
 			if (!socket) return;
 			const emitJoin = () =>
-				socket.emit(
-					"join-game",
-					{ gameId, playerName },
-					(res: any) => {
-						console.debug("join-game ack:", res);
-						// server should emit game-start after adding
-						setSessionId(gameId);
-					},
-				);
+				socket.emit("join-game", { gameId, playerName }, (res: any) => {
+					console.log("join-game ack:", res);
+					// server should emit game-start after adding
+					setSessionId(gameId);
+				});
 			if (socket.connected) emitJoin();
 			else socket.once("connect", emitJoin);
 		},
@@ -119,7 +140,8 @@ export function useGame() {
 	);
 
 	const addChar = useCallback(
-		(char: string) => setCurrentGuess((guess) => (guess + char).slice(0, 5)),
+		(char: string) =>
+			setCurrentGuess((guess) => (guess + char).slice(0, currentGameConfig.wordLength)),
 		[],
 	);
 	const backspace = useCallback(
@@ -135,16 +157,7 @@ export function useGame() {
 			guess: currentGuess,
 			playerId,
 		});
-		setCurrentGuess("");
 	}, [socket, sessionId, playerId, currentGuess]);
-
-	const reset = useCallback(() => {
-		if (!socket || !sessionId) return;
-		// for now, create a new game
-		socket.emit("create-game", undefined, (res: any) =>
-			setSessionId(res.gameId),
-		);
-	}, [socket, sessionId]);
 
 	return {
 		board: state?.board ?? [],
@@ -152,21 +165,18 @@ export function useGame() {
 		currentRow: state?.currentRow ?? 0,
 		currentGuess,
 		answer: state?.answer,
-		maxGuesses: 6,
-		wordLength: 5,
+		currentGameConfig,
 		connected,
 		createGame,
 		joinGame,
-		submitGuess,
 		addChar,
 		backspace,
-		reset,
-		setConfig: () => {},
+		submitGuess,
+		setCurrentGameConfig,
 		gameOver: state?.gameOver ?? false,
 		lastResult: state?.lastResult ?? null,
 		stats: undefined,
 		letterStates: state?.letterStates,
-		guessesUsed: null,
 		message: state?.message || null,
 		clearMessage: () =>
 			setState((s) => (s ? { ...s, message: undefined } : s)),

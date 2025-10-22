@@ -1,52 +1,176 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Settings } from "./Settings";
+import type { GameConfig } from "../../hooks/game";
+
+const DEFAULT_SETTINGS: GameConfig = { maxGuesses: 6, wordLength: 5 };
+
+// Mock MUI Slider with a simple range input for easier interaction in tests
+jest.mock("@mui/material/Slider", () => ({
+	__esModule: true,
+	default: (props: any) => (
+		<input
+			type="range"
+			aria-label={props["aria-label"]}
+			id={props.id}
+			min={props.min}
+			max={props.max}
+			step={props.step}
+			value={props.value}
+			onChange={(e) =>
+				props.onChange?.(
+					e,
+					Number((e.target as HTMLInputElement).value),
+				)
+			}
+		/>
+	),
+}));
 
 describe("Settings component", () => {
-	test("apply calls setConfig and onClose when input is valid", () => {
-		const setConfig = jest.fn();
-		const reset = jest.fn();
+	test("Apply calls setLocalSettings, submitSettingsToGame and onClose when inputs are valid (no extra words)", () => {
+		const setLocalSettings = jest.fn();
+		const submitSettingsToGame = jest.fn();
 		const onClose = jest.fn();
 
 		render(
 			<Settings
-				maxGuesses={6}
-				setConfig={setConfig}
-				reset={reset}
+				open={true}
+				currentSettings={DEFAULT_SETTINGS}
+				setLocalSettings={setLocalSettings}
+				submitSettingsToGame={submitSettingsToGame}
 				onClose={onClose}
 			/>,
 		);
 
-		const input = screen.getByLabelText(/Max guesses/i);
-		fireEvent.change(input, { target: { value: "8" } });
+		const maxSlider = screen.getByLabelText(/max guesses/i);
+		fireEvent.change(maxSlider, { target: { value: "8" } });
 
-		const apply = screen.getByText(/Apply/i);
+		const apply = screen.getByRole("button", { name: /apply/i });
+		expect(apply).toBeEnabled();
 		fireEvent.click(apply);
 
-		expect(setConfig).toHaveBeenCalledWith({
+		expect(setLocalSettings).toHaveBeenCalledWith({
 			maxGuesses: 8,
-			words: undefined,
+			wordLength: 5,
+			extraWordPool: undefined,
 		});
-		expect(reset).toHaveBeenCalled();
+		expect(submitSettingsToGame).toHaveBeenCalledWith({
+			maxGuesses: 8,
+			wordLength: 5,
+			extraWordPool: undefined,
+		});
 		expect(onClose).toHaveBeenCalled();
 	});
 
-	test("shows validation message and disables apply on invalid input", () => {
-		const setConfig = jest.fn();
-		const reset = jest.fn();
+	test("max guesses slider stays within 3-10 and Apply remains enabled at boundaries", () => {
+		render(
+			<Settings
+				open={true}
+				currentSettings={DEFAULT_SETTINGS}
+				setLocalSettings={jest.fn()}
+				submitSettingsToGame={jest.fn()}
+			/>,
+		);
 
-		render(<Settings maxGuesses={6} setConfig={setConfig} reset={reset} />);
+		const maxSlider = screen.getByLabelText(/max guesses/i);
+		// Set to min
+		fireEvent.change(maxSlider, { target: { value: "3" } });
+		const apply1 = screen.getByRole("button", { name: /apply/i });
+		expect(apply1).toBeEnabled();
 
-		const input = screen.getByLabelText(/Max guesses/i);
-		fireEvent.change(input, { target: { value: "" } });
+		// Set to max
+		fireEvent.change(maxSlider, { target: { value: "10" } });
+		const apply2 = screen.getByRole("button", { name: /apply/i });
+		expect(apply2).toBeEnabled();
+	});
 
-		const apply = screen.getByText(/Apply/i);
+	test("enables Apply when extra words match current wordLength", () => {
+		const setLocalSettings = jest.fn();
+		render(
+			<Settings
+				open={true}
+				currentSettings={{ maxGuesses: 6, wordLength: 5 }}
+				setLocalSettings={setLocalSettings}
+				submitSettingsToGame={jest.fn()}
+			/>,
+		);
+
+		const wordsInput = screen.getByLabelText(
+			/Additional words/i,
+		) as HTMLInputElement;
+		fireEvent.change(wordsInput, { target: { value: "apple, crane" } });
+
+		const apply = screen.getByRole("button", { name: /apply/i });
+		expect(apply).toBeEnabled();
+	});
+
+	test("disables Apply and shows word list error when any word length is invalid", () => {
+		render(
+			<Settings
+				open={true}
+				currentSettings={{ maxGuesses: 6, wordLength: 5 }}
+				setLocalSettings={jest.fn()}
+				submitSettingsToGame={jest.fn()}
+			/>,
+		);
+
+		const wordsInput = screen.getByLabelText(
+			/Additional words/i,
+		) as HTMLInputElement;
+		fireEvent.change(wordsInput, { target: { value: "apple, apples" } }); // second word wrong length
+
+		const apply = screen.getByRole("button", { name: /apply/i });
 		expect(apply).toBeDisabled();
 
-		// show validation message after touched
-		fireEvent.change(input, { target: { value: "" } });
-		const alert = screen.getByRole("alert");
-		expect(alert).toHaveTextContent(
-			/Please enter a number between 1 and 10/i,
+		const alerts = screen.getAllByRole("alert");
+		expect(
+			alerts.some((a) => /correct length/i.test(a.textContent || "")),
+		).toBe(true);
+	});
+
+	test("treats empty word list as valid", () => {
+		render(
+			<Settings
+				open={true}
+				currentSettings={{ maxGuesses: 6, wordLength: 5 }}
+				setLocalSettings={jest.fn()}
+				submitSettingsToGame={jest.fn()}
+			/>,
 		);
+
+		const wordsInput = screen.getByLabelText(
+			/Additional words/i,
+		) as HTMLInputElement;
+		fireEvent.change(wordsInput, { target: { value: "   " } });
+
+		const apply = screen.getByRole("button", { name: /apply/i });
+		expect(apply).toBeEnabled();
+	});
+
+	test("word length slider controls validation: mismatch disables, match enables", () => {
+		render(
+			<Settings
+				open={true}
+				currentSettings={{ maxGuesses: 6, wordLength: 5 }}
+				setLocalSettings={jest.fn()}
+				submitSettingsToGame={jest.fn()}
+			/>,
+		);
+
+		const wordsInput = screen.getByLabelText(
+			/Additional words/i,
+		) as HTMLInputElement;
+		fireEvent.change(wordsInput, { target: { value: "apple, crane" } }); // length 5
+
+		const wordLenSlider = screen.getByLabelText(/word length/i);
+		// Set word length to 7 -> should invalidate current list (length 5)
+		fireEvent.change(wordLenSlider, { target: { value: "7" } });
+		const applyDisabled = screen.getByRole("button", { name: /apply/i });
+		expect(applyDisabled).toBeDisabled();
+
+		// Set back to 5 -> should validate list
+		fireEvent.change(wordLenSlider, { target: { value: "5" } });
+		const applyEnabled = screen.getByRole("button", { name: /apply/i });
+		expect(applyEnabled).toBeEnabled();
 	});
 });
