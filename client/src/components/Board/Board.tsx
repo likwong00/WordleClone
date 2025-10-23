@@ -1,5 +1,5 @@
 import React from "react";
-import { TileState } from "../../hooks/game";
+import { TileState } from "../../hooks/useGame";
 
 type BoardProps = {
 	board: string[];

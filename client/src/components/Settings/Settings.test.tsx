@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Settings } from "./Settings";
-import type { GameConfig } from "../../hooks/game";
+import type { GameConfig } from "../../hooks/useGame";
 
 const DEFAULT_SETTINGS: GameConfig = { maxGuesses: 6, wordLength: 5 };
 

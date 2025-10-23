@@ -1,7 +1,7 @@
 import React from "react";
 import { render } from "@testing-library/react";
 import { Board } from "./Board";
-import type { TileState } from "../../hooks/game";
+import type { TileState } from "../../hooks/useGame";
 
 describe("Board", () => {
 	const baseProps = {

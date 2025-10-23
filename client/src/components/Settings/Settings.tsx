@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button, Dialog, DialogContent, Slider } from "@mui/material";
 
-import { GameConfig } from "../../hooks/game";
+import { GameConfig } from "../../hooks/useGame";
 
 type SettingsProps = {
 	open: boolean;

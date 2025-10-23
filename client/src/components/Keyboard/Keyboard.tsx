@@ -1,6 +1,6 @@
 import BackspaceOutlinedIcon from "@mui/icons-material/BackspaceOutlined";
 
-import { TileState } from "../../hooks/game";
+import { TileState } from "../../hooks/useGame";
 import { useEffect } from "react";
 
 const ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];

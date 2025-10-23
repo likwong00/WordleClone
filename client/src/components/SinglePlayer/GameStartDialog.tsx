@@ -14,7 +14,7 @@ type GameStartProps = {
 	onClose?: () => void;
 };
 
-export function GameStartOverlay({ open, onSelect, onClose }: GameStartProps) {
+export function GameStartDialog({ open, onSelect, onClose }: GameStartProps) {
 	return (
 		<Dialog
 			open={open}
@@ -52,5 +52,3 @@ export function GameStartOverlay({ open, onSelect, onClose }: GameStartProps) {
 		</Dialog>
 	);
 }
-
-export default GameStartOverlay;

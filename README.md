@@ -1,22 +1,34 @@
 # Wordle Clone
 
-This is a small Wordle clone built with React + TypeScript + Vite.
+This is a small Wordle clone built with mostly with Typescript, a client/app in React + Vite and a server with Express + Socket.IO.
 
-Features:
-- Uses a configurable word list (`src/words.json`) you can edit or extend.
-- Configurable max guesses via the Settings UI.
+Features
+- 
+- On top of the classic Wordle we all know and love, this clone also has a 1v1 dual game mode. Where each player provides a word for the other to guess, player with the least number of guesses win!
+- Configurable settings include: word list (currently only 'apple' and 'hello' for testing purposes), maximum number of guesses and word length
+- UI with animation similar to the original.
 
-Run locally:
 
-```powershell
+Installation
+-
+- App:
+```
 npm install
+npm run dev
+```
+```
+// to run tests
+npm run test
+```
+
+- Server:
+```
+npm install
+npm run build
 npm run dev
 ```
 
 Notes:
-- This is a minimal implementation for assessment/demo purposes. It doesn't persist state between page reloads.
+- This is a implementation for assessment/demo purposes. Game is reset everytime client is refreshed.
 
-Decisions/Trade-offs:
-- Checking if submitted word is an actual word in the english dictionary. Tried using `is-word` package for speed (using trie trees) and multi-language options, but package is outdated and integrating it is not worth the hassle. Using `check-english` for Task 1 as it is lightweight and compatible for browser to load, but not 100% correct. Went back to `is-word` with client/server modal.
-- Backend choices:
-    - Handling invalid inputs (length not long enough, invalid word), how to handle socket payload
+Documentumentation detailing the design decisions and trade-offs considered for this project: [design.md](design.md)
